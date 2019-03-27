@@ -76,14 +76,27 @@ namespace qb {
         for (auto &it : _pipes) {
             auto &pipe = it.second;
             if (pipe.end()) {
-                auto i = pipe.begin();
-                while (i < pipe.end()) {
-                    const auto &event = *reinterpret_cast<const Event *>(pipe.data() + i);
-                    if (!try_send(event))
-                        break;
-                    i += event.bucket_size;
+                if (it.first == _index) {
+                    const auto size = pipe.end() - pipe.begin();
+                    std::uninitialized_copy_n(pipe.data(), size, _pipe_mono.allocate_back(size));
+                    pipe.reset(size);
+                    auto i = _pipe_mono.begin();
+                    while (i < _pipe_mono.end()) {
+                        const auto &event = *reinterpret_cast<const Event *>(_pipe_mono.data() + i);
+                        _event_map.at(event.id)->invoke(const_cast<Event *>(&event));
+                        i += event.bucket_size;
+                    }
+                    _pipe_mono.reset(size);
+                } else {
+                    auto i = pipe.begin();
+                    while (i < pipe.end()) {
+                        const auto &event = *reinterpret_cast<const Event *>(pipe.data() + i);
+                        if (!try_send(event))
+                            break;
+                        i += event.bucket_size;
+                    }
+                    pipe.reset(i);
                 }
-                pipe.reset(i);
             }
         }
     }

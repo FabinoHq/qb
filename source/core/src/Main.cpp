@@ -31,7 +31,7 @@ namespace qb {
         _cores.resize(_core_set.getNbCore());
         for (auto core_id : _core_set._raw_set) {
             const auto nb_producers = _core_set.getNbCore();
-            _mail_boxes[_core_set.resolve(core_id)] = new MPSCBuffer(nb_producers);
+            _mail_boxes[_core_set.resolve(core_id)] = new MPSCBuffer(nb_producers - static_cast<int>(nb_producers > 1));
         }
         sync_start.store(0, std::memory_order_release);
         is_running = false;
@@ -64,9 +64,11 @@ namespace qb {
     }
 
     bool Main::send(Event const &event) const noexcept {
-        uint16_t source_index = _core_set.resolve(event.source._index);
+        if (event.source._index == event.dest._index) return false;
+        const uint16_t source_index = _core_set.resolve(event.source._index);
+        const uint16_t dest_index = _core_set.resolve(event.dest._index);
 
-        return _mail_boxes[_core_set.resolve(event.dest._index)]->enqueue(source_index,
+        return _mail_boxes[dest_index]->enqueue(source_index - static_cast<uint8_t>(source_index > dest_index),
                                                                           reinterpret_cast<const CacheLine *>(&event),
                                                                           event.bucket_size);
     }

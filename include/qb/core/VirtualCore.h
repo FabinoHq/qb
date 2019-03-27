@@ -177,6 +177,7 @@ namespace qb {
         CallbackMap     _actor_callbacks;
         RemoveActorList _actor_to_remove;
         PipeMap         _pipes;
+        Pipe            _pipe_mono;
         EventBuffer     _event_buffer;
         // !Members
 
